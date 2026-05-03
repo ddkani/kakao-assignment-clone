@@ -2,6 +2,7 @@ package com.example.kakao_assignment_clone.recycler.search_iamge;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -10,9 +11,12 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.example.kakao_assignment_clone.R;
 import com.example.kakao_assignment_clone.databinding.ItemSearchResultBinding;
+import com.example.kakao_assignment_clone.dto.LikeItems;
 import com.example.kakao_assignment_clone.dto.SearchImageDocument;
-import com.example.kakao_assignment_clone.dto.SearchImageResult;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import java.util.List;
 
@@ -59,7 +63,57 @@ public class SearchResultAdapter extends RecyclerView.Adapter<ItemSearchResultVi
             document.getDatetime()
         ));
 
-        // TODO: OnClickListener 지정하기
+        // 좋아요 상태 초기화
+        boolean isLiked = isItemLiked(document.getImageUrl());
+        binding.itemSearchLike.setBackgroundResource(isLiked ? R.drawable.like_filled : R.drawable.like);
+
+        binding.itemSearchLike.setOnClickListener(view -> {
+            SharedPreferences preferences = context.getSharedPreferences("file", Context.MODE_PRIVATE);
+            String _likeItems = preferences.getString("likeItems", null);
+            LikeItems likeItems;
+
+            if (_likeItems == null) {
+                likeItems = new LikeItems();
+            } else {
+                likeItems = new Gson().fromJson(_likeItems, LikeItems.class);
+            }
+
+            // imageUrl 기준 토글
+            boolean alreadyLiked = false;
+            for (int i = 0; i < likeItems.items.size(); i++) {
+                if (likeItems.items.get(i).getImageUrl().equals(document.getImageUrl())) {
+                    likeItems.items.remove(i);
+                    alreadyLiked = true;
+                    break;
+                }
+            }
+
+            if (!alreadyLiked) {
+                likeItems.items.add(document);
+            }
+
+            String _newLikeItems = new GsonBuilder().create().toJson(likeItems, LikeItems.class);
+            SharedPreferences.Editor editor = preferences.edit();
+            editor.putString("likeItems", _newLikeItems);
+            editor.apply();
+
+            // 아이콘 즉시 전환
+            binding.itemSearchLike.setBackgroundResource(alreadyLiked ? R.drawable.like : R.drawable.like_filled);
+        });
+    }
+
+    private boolean isItemLiked(String imageUrl) {
+        SharedPreferences preferences = context.getSharedPreferences("file", Context.MODE_PRIVATE);
+        String _likeItems = preferences.getString("likeItems", null);
+        if (_likeItems == null) return false;
+
+        LikeItems likeItems = new Gson().fromJson(_likeItems, LikeItems.class);
+        for (SearchImageDocument item : likeItems.items) {
+            if (item.getImageUrl().equals(imageUrl)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
